@@ -56,7 +56,20 @@
       </div>
       <p class="hint">임시저장은 이 컴퓨터 브라우저에만 저장돼. 고객 링크에는 영향 없음.</p>
     </div>
+<div class="box">
+  <b>URL 여러 개 붙여넣기 (자동 매물 생성)</b>
+  <p class="hint">
+    줄바꿈으로 여러 개 URL을 붙여넣고 <b>URL로 매물칸 생성</b>을 누르면, URL 개수만큼 매물 입력칸이 자동으로 생겨.
+  </p>
 
+  <label>럭스하우스 링크 목록 (한 줄에 1개)</label>
+  <textarea id="bulkUrls" placeholder="https://luxehouse.kr/_lux/item.php?it_id=9272&#10;https://luxehouse.kr/_lux/item.php?it_id=XXXX&#10;..."></textarea>
+
+  <div class="btns">
+    <button class="ghost" id="bulkAddBtn">URL로 매물칸 생성</button>
+    <button class="ghost" id="bulkClearBtn">붙여넣기 칸 비우기</button>
+  </div>
+</div>
     <div class="box">
       <div class="itemHead">
         <b>매물 목록</b>
