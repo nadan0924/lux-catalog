@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>추천 매물 카탈로그</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;margin:0;background:#f6f7f9;color:#111}
+    .wrap{max-width:920px;margin:0 auto;padding:24px}
+    .header{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:20px;margin-bottom:16px}
+    h1{margin:0 0 8px 0;font-size:22px}
+    .sub{margin:0;color:#555;line-height:1.5;white-space:pre-wrap}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .card{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .name{font-weight:800;font-size:16px;margin:0}
+    .meta{color:#333;font-size:14px;margin:0;white-space:pre-wrap}
+    .reason{font-size:13px;color:#2d3a5a;background:#eef1ff;border-radius:12px;padding:8px 10px}
+    ul{margin:0;padding-left:18px;color:#444;font-size:14px;line-height:1.5}
+    .btn{display:inline-block;margin-top:auto;text-align:center;padding:10px 12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:700}
+    .footer{margin-top:16px;color:#666;font-size:12px;line-height:1.5}
+    .err{background:#fff3cd;border:1px solid #ffe69c;border-radius:16px;padding:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1 id="title">추천 매물 카탈로그</h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+
+    <div id="error"></div>
+    <div class="grid" id="list"></div>
+
+    <div class="footer">
+      ※ 본 페이지는 고객 상담용 요약 페이지이며, 상세 정보는 각 매물 링크에서 확인 가능합니다.
+    </div>
+  </div>
+
+  <script>
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    function b64urlDecode(str){
+      let s = str.replaceAll("-","+").replaceAll("_","/");
+      while (s.length % 4) s += "=";
+      const txt = decodeURIComponent(escape(atob(s)));
+      return txt;
+    }
+
+    function getParam(name){
+      const u = new URL(location.href);
+      return u.searchParams.get(name);
+    }
+
+    const errorBox = document.getElementById("error");
+    const list = document.getElementById("list");
+
+    try{
+      const raw = getParam("data");
+      if(!raw){
+        throw new Error("data 파라미터가 없어요. (작성 페이지에서 생성한 링크로 접속해야 해요)");
+      }
+
+      const json = b64urlDecode(raw);
+      const payload = JSON.parse(json);
+
+      document.getElementById("title").textContent = payload.title || "추천 매물 카탈로그";
+      document.getElementById("subtitle").textContent = payload.subtitle || "";
+
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      if(items.length === 0) throw new Error("표시할 매물 데이터가 없어요.");
+
+      list.innerHTML = items.map(item => {
+        const bullets = Array.isArray(item.bullets) ? item.bullets : [];
+        return `
+          <div class="card">
+            <p class="name">${escapeHtml(item.name)}</p>
+            <p class="meta">${escapeHtml(item.price || "")}</p>
+            ${item.reason ? `<div class="reason">추천 포인트: ${escapeHtml(item.reason)}</div>` : ""}
+            <ul>${bullets.map(b => `<li>${escapeHtml(b)}</li>`).join("")}</ul>
+            <a class="btn" href="${item.url}" target="_blank" rel="noopener">럭스하우스 상세보기</a>
+          </div>
+        `;
+      }).join("");
+
+    }catch(e){
+      errorBox.innerHTML = `<div class="err"><b>페이지를 표시할 수 없어요.</b><br/>${escapeHtml(e.message || String(e))}</div>`;
+    }
+  </script>
+</body>
+</html>
