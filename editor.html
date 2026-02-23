@@ -282,6 +282,61 @@
       }
     });
 
+    function normalizeUrl(url){
+  const u = (url || "").trim();
+  if(!u) return "";
+
+  // http/https 없으면 https 붙이기(혹시 복붙이 이상하게 들어오는 경우 대비)
+  if(!/^https?:\/\//i.test(u)) return "https://" + u;
+
+  return u;
+}
+
+function guessNameFromUrl(url){
+  try{
+    const u = new URL(url);
+    const itId = u.searchParams.get("it_id");
+    if(itId) return `럭스하우스 매물 ${itId}`;
+  }catch(e){}
+  return "럭스하우스 매물";
+}
+
+function addItemsFromUrls(text){
+  const lines = String(text || "")
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // 중복 제거 + URL 정리
+  const uniq = [];
+  const seen = new Set();
+  for(const line of lines){
+    const url = normalizeUrl(line);
+    if(!url) continue;
+    if(seen.has(url)) continue;
+    seen.add(url);
+    uniq.push(url);
+  }
+
+  if(uniq.length === 0){
+    alert("추가할 URL이 없어. 줄바꿈으로 URL을 붙여넣어줘!");
+    return;
+  }
+
+  // URL 수만큼 매물칸 생성
+  uniq.forEach(url => {
+    state.items.push({
+      name: guessNameFromUrl(url),
+      price: "",
+      reason: "",
+      bullets: [],
+      url
+    });
+  });
+
+  render();
+}
+
     // 시작
     loadDraft();
     if(state.items.length === 0) addItem();
