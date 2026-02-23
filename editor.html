@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>매물 카탈로그 작성</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;margin:0;background:#f6f7f9;color:#111}
+    .wrap{max-width:980px;margin:0 auto;padding:20px}
+    .box{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:16px;margin-bottom:12px}
+    h1{margin:0 0 10px 0;font-size:20px}
+    label{display:block;font-weight:700;font-size:13px;margin:10px 0 6px}
+    input, textarea{width:100%;box-sizing:border-box;border:1px solid #d7dbe3;border-radius:12px;padding:10px;font-size:14px}
+    textarea{min-height:80px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
+    .primary{background:#111;color:#fff}
+    .ghost{background:#eef1f6;color:#111}
+    .danger{background:#ffebee;color:#b00020}
+    .items{display:grid;gap:10px}
+    .item{border:1px solid #e7e9ee;border-radius:14px;padding:12px;background:#fff}
+    .itemHead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .pill{font-size:12px;background:#eef1f6;border-radius:999px;padding:4px 10px}
+    .hint{color:#666;font-size:12px;line-height:1.5;margin:8px 0 0}
+    .share{word-break:break-all;background:#0b1020;color:#d9e2ff;padding:12px;border-radius:14px;font-size:13px}
+    .toplinks{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    a{color:#111}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="box">
+      <h1>매물 카탈로그 작성 (내부용)</h1>
+      <div class="toplinks">
+        <span class="pill">고객 화면: view.html</span>
+        <span class="pill">작성 화면: editor.html</span>
+      </div>
+      <p class="hint">
+        여기서 내용 입력 → <b>고객 공유 링크 생성</b> 누르면 고객용 링크가 만들어져.<br/>
+        (서버 없이 URL에 데이터를 담는 방식이라, 링크가 길어질 수 있어. 보통 3~10건은 문제 없음)
+      </p>
+    </div>
+
+    <div class="box">
+      <label>제목</label>
+      <input id="title" placeholder="예) 고객님 맞춤 추천 매물" />
+
+      <label>요청 조건/설명</label>
+      <textarea id="subtitle" placeholder="예) 청담/삼성권 · 전세 · 신축급 · 전용 70평대 / 요청 조건 기준 선별"></textarea>
+
+      <div class="btns">
+        <button class="ghost" id="addItemBtn">+ 매물 추가</button>
+        <button class="ghost" id="saveBtn">임시저장(이 PC)</button>
+        <button class="danger" id="resetBtn">초기화</button>
+      </div>
+      <p class="hint">임시저장은 이 컴퓨터 브라우저에만 저장돼. 고객 링크에는 영향 없음.</p>
+    </div>
+
+    <div class="box">
+      <div class="itemHead">
+        <b>매물 목록</b>
+        <span class="pill" id="countPill">0건</span>
+      </div>
+      <div class="items" id="items"></div>
+    </div>
+
+    <div class="box">
+      <div class="btns">
+        <button class="primary" id="genLinkBtn">고객 공유 링크 생성</button>
+        <button class="ghost" id="copyBtn">링크 복사</button>
+        <button class="ghost" id="openBtn">고객 화면 열기</button>
+      </div>
+      <div class="share" id="shareBox">여기에 고객 공유 링크가 생성돼.</div>
+      <p class="hint">고객에게는 이 링크 하나만 카톡으로 보내면 끝.</p>
+    </div>
+  </div>
+
+  <script>
+    const LS_KEY = "lux_catalog_draft_v1";
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    function b64urlEncode(str){
+      const b64 = btoa(unescape(encodeURIComponent(str)));
+      return b64.replaceAll("+","-").replaceAll("/","_").replaceAll("=","");
+    }
+
+    function b64urlDecode(str){
+      let s = str.replaceAll("-","+").replaceAll("_","/");
+      while (s.length % 4) s += "=";
+      const txt = decodeURIComponent(escape(atob(s)));
+      return txt;
+    }
+
+    const state = {
+      title: "",
+      subtitle: "",
+      items: []
+    };
+
+    const elTitle = document.getElementById("title");
+    const elSubtitle = document.getElementById("subtitle");
+    const elItems = document.getElementById("items");
+    const elCount = document.getElementById("countPill");
+    const elShare = document.getElementById("shareBox");
+
+    function render(){
+      elTitle.value = state.title;
+      elSubtitle.value = state.subtitle;
+      elCount.textContent = `${state.items.length}건`;
+
+      elItems.innerHTML = state.items.map((it, idx) => `
+        <div class="item">
+          <div class="itemHead">
+            <b>#${idx+1}</b>
+            <button class="danger" data-del="${idx}" title="삭제">삭제</button>
+          </div>
+
+          <label>매물명</label>
+          <input data-k="name" data-i="${idx}" value="${escapeHtml(it.name)}" placeholder="예) 청담 르엘 / 미사 R-3 신축 단독" />
+
+          <div class="row">
+            <div>
+              <label>가격/조건</label>
+              <input data-k="price" data-i="${idx}" value="${escapeHtml(it.price)}" placeholder="예) 매매 27억 / 전세 40억" />
+            </div>
+            <div>
+              <label>한 줄 추천 이유</label>
+              <input data-k="reason" data-i="${idx}" value="${escapeHtml(it.reason)}" placeholder="예) 루프탑+정원+공원1분" />
+            </div>
+          </div>
+
+          <label>포인트(줄바꿈으로 2~5줄)</label>
+          <textarea data-k="bullets" data-i="${idx}" placeholder="예) 루프탑/테라스/정원&#10;높은 층고, 개방감 인테리어&#10;근린생태공원 도보 1분">${escapeHtml((it.bullets||[]).join("\n"))}</textarea>
+
+          <label>럭스하우스 링크(URL)</label>
+          <input data-k="url" data-i="${idx}" value="${escapeHtml(it.url)}" placeholder="https://luxehouse.kr/..." />
+        </div>
+      `).join("");
+    }
+
+    function addItem(){
+      state.items.push({ name:"", price:"", reason:"", bullets:[], url:"" });
+      render();
+    }
+
+    function saveDraft(){
+      localStorage.setItem(LS_KEY, JSON.stringify(state));
+      alert("임시저장 완료!");
+    }
+
+    function loadDraft(){
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      try{
+        const parsed = JSON.parse(raw);
+        if(parsed && typeof parsed === "object"){
+          state.title = parsed.title || "";
+          state.subtitle = parsed.subtitle || "";
+          state.items = Array.isArray(parsed.items) ? parsed.items : [];
+        }
+      }catch(e){}
+    }
+
+    function resetAll(){
+      if(!confirm("정말 초기화할까? (임시저장도 지워짐)")) return;
+      state.title=""; state.subtitle=""; state.items=[];
+      localStorage.removeItem(LS_KEY);
+      elShare.textContent = "여기에 고객 공유 링크가 생성돼.";
+      render();
+    }
+
+    function buildPayload(){
+      // bullets textarea -> array
+      const cleaned = state.items
+        .map(it => ({
+          name: (it.name||"").trim(),
+          price: (it.price||"").trim(),
+          reason: (it.reason||"").trim(),
+          bullets: Array.isArray(it.bullets) ? it.bullets : String(it.bullets||"").split("\n"),
+          url: (it.url||"").trim()
+        }))
+        .filter(it => it.name && it.url);
+
+      return {
+        title: (state.title||"").trim() || "추천 매물 카탈로그",
+        subtitle: (state.subtitle||"").trim(),
+        items: cleaned.map(it => ({
+          ...it,
+          bullets: (it.bullets||[]).map(x => String(x).trim()).filter(Boolean).slice(0, 6)
+        }))
+      };
+    }
+
+    function genShareLink(){
+      const payload = buildPayload();
+      if(payload.items.length === 0){
+        alert("매물명 + 링크(URL)가 들어간 항목이 최소 1개는 있어야 해!");
+        return "";
+      }
+
+      const json = JSON.stringify(payload);
+      const data = b64urlEncode(json);
+
+      // view.html로 이동하는 링크 만들기 (GitHub Pages 경로 대응)
+      const base = location.href.replace(/editor\.html(\?.*)?$/, "");
+      const url = `${base}view.html?data=${data}`;
+
+      elShare.textContent = url;
+      return url;
+    }
+
+    // 이벤트
+    document.getElementById("addItemBtn").addEventListener("click", addItem);
+    document.getElementById("saveBtn").addEventListener("click", saveDraft);
+    document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+    document.getElementById("genLinkBtn").addEventListener("click", () => genShareLink());
+
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const url = elShare.textContent.trim();
+      if(!url.startsWith("http")) { alert("먼저 '고객 공유 링크 생성'을 눌러줘!"); return; }
+      try{
+        await navigator.clipboard.writeText(url);
+        alert("복사 완료! 카톡에 붙여넣으면 돼.");
+      }catch(e){
+        // fallback
+        prompt("복사가 막혔어. 아래 링크를 직접 복사해줘:", url);
+      }
+    });
+
+    document.getElementById("openBtn").addEventListener("click", () => {
+      const url = elShare.textContent.trim();
+      if(!url.startsWith("http")) { alert("먼저 '고객 공유 링크 생성'을 눌러줘!"); return; }
+      window.open(url, "_blank", "noopener");
+    });
+
+    // 입력 반영
+    elTitle.addEventListener("input", e => state.title = e.target.value);
+    elSubtitle.addEventListener("input", e => state.subtitle = e.target.value);
+
+    document.addEventListener("input", (e) => {
+      const t = e.target;
+      const i = t.getAttribute("data-i");
+      const k = t.getAttribute("data-k");
+      if(i === null || !k) return;
+      const idx = Number(i);
+      if(!Number.isFinite(idx) || !state.items[idx]) return;
+
+      if(k === "bullets"){
+        state.items[idx][k] = String(t.value||"").split("\n");
+      }else{
+        state.items[idx][k] = t.value;
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      const del = e.target?.getAttribute?.("data-del");
+      if(del === null) return;
+      const idx = Number(del);
+      if(Number.isFinite(idx)){
+        state.items.splice(idx, 1);
+        render();
+      }
+    });
+
+    // 시작
+    loadDraft();
+    if(state.items.length === 0) addItem();
+    render();
+  </script>
+</body>
+</html>
