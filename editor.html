@@ -336,7 +336,14 @@ function addItemsFromUrls(text){
 
   render();
 }
+document.getElementById("bulkAddBtn").addEventListener("click", () => {
+  const txt = document.getElementById("bulkUrls").value;
+  addItemsFromUrls(txt);
+});
 
+document.getElementById("bulkClearBtn").addEventListener("click", () => {
+  document.getElementById("bulkUrls").value = "";
+});
     // 시작
     loadDraft();
     if(state.items.length === 0) addItem();
