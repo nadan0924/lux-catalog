@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>추천 매물 카탈로그</title>
+  <style>
+    body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;margin:0;background:#f6f7f9;color:#111}
+    .wrap{max-width:920px;margin:0 auto;padding:24px}
+    .header{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:20px;margin-bottom:16px}
+    h1{margin:0 0 8px 0;font-size:22px}
+    .sub{margin:0;color:#555;line-height:1.5}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .card{background:#fff;border:1px solid #e7e9ee;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .name{font-weight:700;font-size:16px;margin:0}
+    .price{color:#333;font-size:14px;margin:0}
+    ul{margin:0;padding-left:18px;color:#444;font-size:14px;line-height:1.5}
+    .btn{display:inline-block;margin-top:auto;text-align:center;padding:10px 12px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:600}
+    .footer{margin-top:16px;color:#666;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1 id="title"></h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+
+    <div class="grid" id="list"></div>
+
+    <div class="footer">
+      ※ 본 페이지는 고객 상담용 요약 페이지이며, 상세 정보는 각 매물 링크에서 확인 가능합니다.
+    </div>
+  </div>
+
+  <script src="./data.js"></script>
+  <script>
+    const c = window.CATALOG || {};
+    document.getElementById("title").textContent = c.title || "추천 매물 카탈로그";
+    document.getElementById("subtitle").textContent = c.subtitle || "";
+
+    const list = document.getElementById("list");
+    (c.items || []).forEach(item => {
+      const el = document.createElement("div");
+      el.className = "card";
+      el.innerHTML = `
+        <p class="name">${escapeHtml(item.name)}</p>
+        <p class="price">${escapeHtml(item.price || "")}</p>
+        <ul>${(item.bullets || []).map(b => `<li>${escapeHtml(b)}</li>`).join("")}</ul>
+        <a class="btn" href="${item.url}" target="_blank" rel="noopener">럭스하우스 상세보기</a>
+      `;
+      list.appendChild(el);
+    });
+
+    function escapeHtml(s){
+      return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+                      .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+  </script>
+</body>
+</html>
